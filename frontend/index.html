@@ -1011,7 +1011,7 @@
             const url = `${server}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_live_streams`;
             
             // استخدم وكيل CORS عام (يمكنك تغييره إلى خادمك الخاص)
-            const proxy = 'https://corsproxy.io/?';
+            const proxy = 'https://hacene-iptv.onrender.com/api?url=';
             const finalUrl = proxy + encodeURIComponent(url);
 
             const response = await fetch(finalUrl);
