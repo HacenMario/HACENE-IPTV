@@ -978,7 +978,7 @@
             try {
                 const proxyCheck = await fetch('http://localhost:3001/api?url=' + encodeURIComponent('test'));
                 if (proxyCheck.ok) {
-                    finalUrl = `http://localhost:3001/api?url=${encodeURIComponent(url)}`;
+                const finalUrl = `https://hacene-iptv.onrender.com/api?url=${encodeURIComponent(url)}`;
                 }
             } catch (e) {}
 
