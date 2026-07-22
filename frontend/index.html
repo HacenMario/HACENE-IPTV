@@ -580,6 +580,8 @@
     <!-- ===================================================================== -->
     <!-- =====  JAVASCRIPT ===== -->
     <!-- ===================================================================== -->
+    <!-- استيراد hls.js من CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@0.14.17/dist/hls.min.js"></script>
     <script>
         // ================================================================
         // 🔴🔴🔴  ضع بيانات القنوات هنا (من extracted.txt)  🔴🔴🔴
@@ -606,9 +608,10 @@
         let xtreamCredentials = null;
         let isXtreamMode = false;
         let appInitialized = false;
+        let hlsInstance = null; // لتخزين كائن hls.js
 
         // ================================================================
-        // 3.  دوال العرض
+        // 3.  دوال العرض (بدون تغيير)
         // ================================================================
 
         function buildSidebar() {
@@ -691,7 +694,7 @@
         }
 
         // ================================================================
-        // 4.  دوال التحكم
+        // 4.  دوال التحكم (بدون تغيير)
         // ================================================================
 
         function selectCategory(cat) {
@@ -720,7 +723,7 @@
         }
 
         // ================================================================
-        // 5.  إضافة قناة يدوي
+        // 5.  إضافة قناة يدوي (بدون تغيير)
         // ================================================================
 
         function openAddModal() {
@@ -759,7 +762,7 @@
         });
 
         // ================================================================
-        // 6.  تشغيل القناة (نسخة مبسطة بدون hls.js)
+        // 6.  تشغيل القناة (معدل لاستخدام hls.js)
         // ================================================================
 
         function playChannel(index) {
@@ -774,6 +777,7 @@
             // إذا كانت القناة من Xtream (لدينا stream_id) ونحن في وضع Xtream
             if (channel.stream_id && isXtreamMode && xtreamCredentials) {
                 const { server, username, password } = xtreamCredentials;
+                // بناء الرابط بصيغة m3u8
                 url = `${server}/live/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${channel.stream_id}.m3u8`;
             }
 
@@ -791,17 +795,45 @@
             errorDiv.style.display = 'none';
             currentPlayingUrl = url;
 
+            // إيقاف أي تشغيل سابق
+            if (hlsInstance) {
+                hlsInstance.destroy();
+                hlsInstance = null;
+            }
             video.pause();
-            video.src = url;
-            video.load();
-            video.play().catch(() => {
-                errorDiv.style.display = 'block';
-            });
+            video.src = '';
 
-            video.onerror = function() {
-                errorDiv.style.display = 'block';
-                console.error('فشل تشغيل الفيديو:', video.error);
-            };
+            // التحقق مما إذا كان المتصفح يدعم HLS natively (مثل Safari)
+            if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = url;
+                video.play().catch(() => {
+                    errorDiv.style.display = 'block';
+                });
+            } else if (Hls.isSupported()) {
+                // استخدام hls.js
+                hlsInstance = new Hls({
+                    enableWorker: true,
+                    lowLatencyMode: true,
+                });
+                hlsInstance.loadSource(url);
+                hlsInstance.attachMedia(video);
+                hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+                    video.play().catch(() => {
+                        errorDiv.style.display = 'block';
+                    });
+                });
+                hlsInstance.on(Hls.Events.ERROR, function(event, data) {
+                    if (data.fatal) {
+                        errorDiv.style.display = 'block';
+                    }
+                });
+            } else {
+                // fallback: محاولة التشغيل مباشرة
+                video.src = url;
+                video.play().catch(() => {
+                    errorDiv.style.display = 'block';
+                });
+            }
 
             modal.classList.add('active');
         }
@@ -810,6 +842,10 @@
             const modal = document.getElementById('videoModal');
             const video = document.getElementById('nativePlayer');
             modal.classList.remove('active');
+            if (hlsInstance) {
+                hlsInstance.destroy();
+                hlsInstance = null;
+            }
             video.pause();
             video.src = '';
             video.onerror = null;
@@ -825,7 +861,7 @@
         }
 
         // ================================================================
-        // 7.  نسخ الروابط
+        // 7.  نسخ الروابط (بدون تغيير)
         // ================================================================
 
         function copyLinkByIndex(index) {
@@ -862,7 +898,7 @@
         }
 
         // ================================================================
-        // 8.  دوال Xtream
+        // 8.  دوال Xtream (معدلة لاستخدام وكيل عام)
         // ================================================================
 
         function loadXtreamCredentials() {
@@ -973,14 +1009,10 @@
         async function fetchXtreamChannels(creds) {
             const { server, username, password } = creds;
             const url = `${server}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_live_streams`;
-
-            let finalUrl = url;
-            try {
-                const proxyCheck = await fetch('http://localhost:3001/api?url=' + encodeURIComponent('test'));
-                if (proxyCheck.ok) {
-                const finalUrl = `https://hacene-iptv.onrender.com/api?url=${encodeURIComponent(url)}`;
-                }
-            } catch (e) {}
+            
+            // استخدم وكيل CORS عام (يمكنك تغييره إلى خادمك الخاص)
+            const proxy = 'https://corsproxy.io/?';
+            const finalUrl = proxy + encodeURIComponent(url);
 
             const response = await fetch(finalUrl);
             if (!response.ok) {
@@ -1002,7 +1034,7 @@
         }
 
         // ================================================================
-        // 9.  تصدير / استيراد
+        // 9.  تصدير / استيراد (بدون تغيير)
         // ================================================================
 
         function exportChannels() {
@@ -1118,9 +1150,7 @@
         // 11.  بدء التطبيق
         // ================================================================
 
-        // تأكد من وجود العناصر قبل التهيئة
         document.addEventListener('DOMContentLoaded', initApp);
-        // إذا كان DOM جاهزاً بالفعل
         if (document.readyState === 'complete' || document.readyState === 'interactive') {
             initApp();
         }
