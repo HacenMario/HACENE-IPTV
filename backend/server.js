@@ -12,7 +12,12 @@ app.get('/api', async (req, res) => {
   }
 
   try {
-    const response = await axios.get(targetUrl);
+    const response = await axios.get(targetUrl, {
+      // يمكن إضافة headers إذا لزم الأمر
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
     res.json(response.data);
   } catch (error) {
     console.error('Proxy error:', error.message);
